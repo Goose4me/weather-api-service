@@ -3,6 +3,7 @@ package database
 import (
 	"fmt"
 	"os"
+	"time"
 
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
@@ -58,4 +59,70 @@ func InitDB() (*gorm.DB, error) {
 	}
 
 	return db, nil
+}
+
+func GetUser(email string, db *gorm.DB) (models.User, error) {
+	var user models.User
+
+	err := db.Where("email = ?", email).First(&user).Error
+	if err != nil {
+		if err == gorm.ErrRecordNotFound {
+			// User not found — create one
+			user = models.User{
+				Email:       email,
+				IsConfirmed: false,
+				CreatedAt:   time.Now(),
+			}
+			if err := db.Create(&user).Error; err != nil {
+				return user, err
+			}
+		} else {
+			// Real DB error
+			return user, err
+		}
+	}
+
+	return user, nil
+}
+
+func CreateNewUser(email string, db *gorm.DB) (models.User, error) {
+	user := models.User{
+		Email:       email,
+		IsConfirmed: false,
+		CreatedAt:   time.Now(),
+	}
+
+	if err := db.Create(&user).Error; err != nil {
+		return user, err
+	}
+
+	return user, nil
+}
+
+func CreateSubscription(user *models.User, city, frequency string, db *gorm.DB) error {
+	var existingSub models.Subscription
+	err := db.Where("user_id = ? AND city = ? AND frequency = ?", user.ID, city, frequency).
+		First(&existingSub).Error
+
+	if err == nil {
+		// Subscription already exists
+		return fmt.Errorf("subscription already exists")
+	} else if err != gorm.ErrRecordNotFound {
+		// Unexpected DB error
+		return err
+	}
+
+	// Add new subscription
+	sub := models.Subscription{
+		UserID:    user.ID,
+		City:      city,
+		Frequency: frequency,
+		CreatedAt: time.Now(),
+	}
+
+	if err := db.Create(&sub).Error; err != nil {
+		return err
+	}
+
+	return nil
 }

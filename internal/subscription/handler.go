@@ -1,12 +1,38 @@
 package subscription
 
-import "net/http"
+import (
+	"fmt"
+	"net/http"
+)
 
 const (
 	genericErrorMsg = "Something went wrong"
 )
 
-func SubscriptionHandler(w http.ResponseWriter, req *http.Request) {
+type SubscriptionHandler struct {
+	service *SubscriptionService
+}
+
+func NewHandler(svc *SubscriptionService) *SubscriptionHandler {
+	return &SubscriptionHandler{service: svc}
+}
+
+var validFrequencies = map[string]struct{}{
+	"hourly": {},
+	"daily":  {},
+}
+
+func isValidFrequency(freq string) bool {
+	_, ok := validFrequencies[freq]
+	return ok
+}
+
+// TODO: write email validation
+func isValidEmail(email string) bool {
+	return email != ""
+}
+
+func (h *SubscriptionHandler) Handler(w http.ResponseWriter, req *http.Request) {
 	if req.Method != "POST" {
 		http.Error(w, "Unsupported method", http.StatusBadRequest)
 		return
@@ -25,6 +51,13 @@ func SubscriptionHandler(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
+	if !isValidEmail(email) {
+		err := fmt.Sprintf("invalid \"email\" parameter \"%s\"", email)
+		http.Error(w, err, http.StatusBadRequest)
+
+		return
+	}
+
 	city := req.FormValue("city")
 	if city == "" {
 		http.Error(w, "\"city\" parameter is empty", http.StatusBadRequest)
@@ -39,4 +72,20 @@ func SubscriptionHandler(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
+	if !isValidFrequency(frequency) {
+		err := fmt.Sprintf("invalid \"frequency\" parameter \"%s\"", frequency)
+		http.Error(w, err, http.StatusBadRequest)
+
+		return
+	}
+
+	err := h.service.Subscribe(email, city, frequency)
+
+	if err != nil {
+		http.Error(w, genericErrorMsg, http.StatusInternalServerError)
+
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
 }

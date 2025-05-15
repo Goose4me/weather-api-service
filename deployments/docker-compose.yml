@@ -1,9 +1,9 @@
 version: '3.8'
+
 services:
   db:
     image: postgres:14.1-alpine
     restart: unless-stopped
-    context: ../
     env_file:
       - ../.env
     environment:
