@@ -21,6 +21,11 @@ var (
 	ErrInvalidFrequency = errors.New("frequency parameter is invalid")
 )
 
+var validFrequencies = map[string]struct{}{
+	"hourly": {},
+	"daily":  {},
+}
+
 type SubscriptionHandler struct {
 	service *SubscriptionService
 }
@@ -33,11 +38,6 @@ type FormData struct {
 	Email     string
 	City      string
 	Frequency string
-}
-
-var validFrequencies = map[string]struct{}{
-	"hourly": {},
-	"daily":  {},
 }
 
 func isValidFrequency(freq string) bool {
