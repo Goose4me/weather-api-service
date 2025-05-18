@@ -53,7 +53,7 @@ func InitDB() (*gorm.DB, error) {
 		return nil, fmt.Errorf("failed to connect to DB: %w", err)
 	}
 
-	err = db.AutoMigrate(&models.User{}, &models.Subscription{}, &models.WeatherLog{})
+	err = db.AutoMigrate(&models.User{}, &models.Subscription{}, &models.WeatherLog{}, &models.Token{})
 	if err != nil {
 		return nil, fmt.Errorf("failed to migrate DB: %w", err)
 	}
@@ -61,31 +61,23 @@ func InitDB() (*gorm.DB, error) {
 	return db, nil
 }
 
-func GetUser(email string, db *gorm.DB) (models.User, error) {
+func GetUser(email string, db *gorm.DB) (*models.User, error) {
 	var user models.User
 
 	err := db.Where("email = ?", email).First(&user).Error
 	if err != nil {
 		if err == gorm.ErrRecordNotFound {
-			// User not found — create one
-			user = models.User{
-				Email:       email,
-				IsConfirmed: false,
-				CreatedAt:   time.Now(),
-			}
-			if err := db.Create(&user).Error; err != nil {
-				return user, err
-			}
+			return nil, err
 		} else {
 			// Real DB error
-			return user, err
+			return nil, err
 		}
 	}
 
-	return user, nil
+	return &user, nil
 }
 
-func CreateNewUser(email string, db *gorm.DB) (models.User, error) {
+func CreateNewUser(email string, db *gorm.DB) (*models.User, error) {
 	user := models.User{
 		Email:       email,
 		IsConfirmed: false,
@@ -93,23 +85,23 @@ func CreateNewUser(email string, db *gorm.DB) (models.User, error) {
 	}
 
 	if err := db.Create(&user).Error; err != nil {
-		return user, err
+		return nil, err
 	}
 
-	return user, nil
+	return &user, nil
 }
 
-func CreateSubscription(user *models.User, city, frequency string, db *gorm.DB) error {
+func CreateSubscription(user *models.User, city, frequency string, db *gorm.DB) (*models.Subscription, error) {
 	var existingSub models.Subscription
 	err := db.Where("user_id = ? AND city = ? AND frequency = ?", user.ID, city, frequency).
 		First(&existingSub).Error
 
 	if err == nil {
 		// Subscription already exists
-		return fmt.Errorf("subscription already exists")
+		return nil, fmt.Errorf("subscription already exists")
 	} else if err != gorm.ErrRecordNotFound {
 		// Unexpected DB error
-		return err
+		return nil, err
 	}
 
 	// Add new subscription
@@ -121,8 +113,36 @@ func CreateSubscription(user *models.User, city, frequency string, db *gorm.DB) 
 	}
 
 	if err := db.Create(&sub).Error; err != nil {
-		return err
+		return nil, err
 	}
 
-	return nil
+	return &sub, nil
+}
+
+func CreateToken(subscription *models.Subscription, value, token_type string, db *gorm.DB) (*models.Token, error) {
+	var existingToken models.Token
+	err := db.Where("value = ? AND type = ? AND subscription_id = ?", value, token_type, subscription.ID).
+		First(&existingToken).Error
+
+	if err == nil {
+		// Token already exists
+		return nil, fmt.Errorf("token already exists")
+	} else if err != gorm.ErrRecordNotFound {
+		// Unexpected DB error
+		return nil, err
+	}
+
+	// Add new token
+	token := models.Token{
+		Value:          value,
+		Type:           token_type,
+		SubscriptionID: subscription.ID,
+		CreatedAt:      time.Now(),
+	}
+
+	if err := db.Create(&token).Error; err != nil {
+		return nil, err
+	}
+
+	return &token, nil
 }
