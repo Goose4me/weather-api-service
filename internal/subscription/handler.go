@@ -5,12 +5,15 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"regexp"
 	"strings"
 )
 
 const (
 	genericErrorMsg = "Something went wrong"
 )
+
+var emailRegex = regexp.MustCompile(`^[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}$`)
 
 type SubscriptionHandler struct {
 	service *SubscriptionService
@@ -30,9 +33,8 @@ func isValidFrequency(freq string) bool {
 	return ok
 }
 
-// TODO: write email validation
 func isValidEmail(email string) bool {
-	return email != ""
+	return emailRegex.MatchString(email)
 }
 
 func (h *SubscriptionHandler) SubscribeHandler(w http.ResponseWriter, req *http.Request) {
