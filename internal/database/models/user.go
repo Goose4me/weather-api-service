@@ -12,8 +12,6 @@ type User struct {
 	Email       string    `gorm:"uniqueIndex;not null"`
 	IsConfirmed bool
 	CreatedAt   time.Time
-
-	Subscriptions Subscription `gorm:"constraint:OnDelete:CASCADE"`
 }
 
 func (u *User) BeforeCreate(tx *gorm.DB) error {

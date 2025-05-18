@@ -3,7 +3,9 @@ package subscription
 import (
 	"errors"
 	"fmt"
+	"log"
 	"net/http"
+	"strings"
 )
 
 const (
@@ -33,9 +35,10 @@ func isValidEmail(email string) bool {
 	return email != ""
 }
 
-func (h *SubscriptionHandler) Handler(w http.ResponseWriter, req *http.Request) {
+func (h *SubscriptionHandler) SubscribeHandler(w http.ResponseWriter, req *http.Request) {
 	if req.Method != "POST" {
-		http.Error(w, "Unsupported method", http.StatusBadRequest)
+		errorMessage := fmt.Sprintf("Unsupported method %s", req.Method)
+		http.Error(w, errorMessage, http.StatusBadRequest)
 		return
 	}
 
@@ -89,6 +92,46 @@ func (h *SubscriptionHandler) Handler(w http.ResponseWriter, req *http.Request) 
 			http.Error(w, genericErrorMsg, http.StatusInternalServerError)
 		}
 
+		log.Println(err.Error())
+
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+}
+
+func (h *SubscriptionHandler) ConfirmHandler(w http.ResponseWriter, req *http.Request) {
+	if req.Method != "GET" {
+		errorMessage := fmt.Sprintf("Unsupported method %s", req.Method)
+		http.Error(w, errorMessage, http.StatusBadRequest)
+		return
+	}
+
+	tokenValue := strings.TrimPrefix(req.URL.Path, "/api/confirm/")
+
+	log.Printf("Token is: %s\n", tokenValue)
+
+	err := h.service.Confirm(tokenValue)
+
+	if err != nil {
+		switch {
+		case errors.Is(err, ErrTokenNotFound):
+			http.Error(w, ErrTokenNotFound.Error(), http.StatusNotFound)
+
+		case errors.Is(err, ErrTokenEmpty):
+			http.Error(w, ErrTokenEmpty.Error(), http.StatusBadRequest)
+
+		case errors.Is(err, ErrTokenWrongType):
+			http.Error(w, ErrTokenWrongType.Error(), http.StatusBadRequest)
+
+		case errors.Is(err, ErrTokenUsed):
+			http.Error(w, ErrTokenUsed.Error(), http.StatusBadRequest)
+
+		default:
+			http.Error(w, genericErrorMsg, http.StatusInternalServerError)
+		}
+
+		log.Println(err.Error())
 		return
 	}
 

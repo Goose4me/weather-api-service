@@ -5,6 +5,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/google/uuid"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 
@@ -66,15 +67,23 @@ func GetUser(email string, db *gorm.DB) (*models.User, error) {
 
 	err := db.Where("email = ?", email).First(&user).Error
 	if err != nil {
-		if err == gorm.ErrRecordNotFound {
-			return nil, err
-		} else {
-			// Real DB error
-			return nil, err
-		}
+		return nil, err
 	}
 
 	return &user, nil
+}
+
+func GetUserByID(id uuid.UUID, db *gorm.DB) (*models.User, error) {
+	var user models.User
+	if err := db.First(&user, "id = ?", id).Error; err != nil {
+		return nil, err
+	}
+
+	return &user, nil
+}
+
+func DeleteUser(user *models.User, db *gorm.DB) error {
+	return db.Delete(user).Error
 }
 
 func CreateNewUser(email string, db *gorm.DB) (*models.User, error) {
@@ -89,6 +98,27 @@ func CreateNewUser(email string, db *gorm.DB) (*models.User, error) {
 	}
 
 	return &user, nil
+}
+
+func UpdateUser(user *models.User, db *gorm.DB) error {
+
+	if err := db.Save(&user).Error; err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func UpdateUserConfirmed(user *models.User, isConfirmed bool, db *gorm.DB) error {
+	if err := db.Model(&user).Update("is_confirmed", isConfirmed).Error; err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func DeleteSubscription(sub *models.Subscription, db *gorm.DB) error {
+	return db.Delete(sub).Error
 }
 
 func CreateSubscription(user *models.User, city, frequency string, db *gorm.DB) (*models.Subscription, error) {
@@ -119,9 +149,24 @@ func CreateSubscription(user *models.User, city, frequency string, db *gorm.DB) 
 	return &sub, nil
 }
 
-func CreateToken(subscription *models.Subscription, value, token_type string, db *gorm.DB) (*models.Token, error) {
+func GetToken(value string, db *gorm.DB) (*models.Token, error) {
+	var token models.Token
+
+	err := db.Where("value = ?", value).First(&token).Error
+	if err != nil {
+		return nil, err
+	}
+
+	return &token, nil
+}
+
+func DeleteToken(token *models.Token, db *gorm.DB) error {
+	return db.Delete(token).Error
+}
+
+func CreateToken(user *models.User, value, token_type string, db *gorm.DB) (*models.Token, error) {
 	var existingToken models.Token
-	err := db.Where("value = ? AND type = ? AND subscription_id = ?", value, token_type, subscription.ID).
+	err := db.Where("value = ? AND type = ? AND user_id = ?", value, token_type, user.ID).
 		First(&existingToken).Error
 
 	if err == nil {
@@ -134,10 +179,10 @@ func CreateToken(subscription *models.Subscription, value, token_type string, db
 
 	// Add new token
 	token := models.Token{
-		Value:          value,
-		Type:           token_type,
-		SubscriptionID: subscription.ID,
-		CreatedAt:      time.Now(),
+		Value:     value,
+		Type:      token_type,
+		UserID:    user.ID,
+		CreatedAt: time.Now(),
 	}
 
 	if err := db.Create(&token).Error; err != nil {

@@ -8,6 +8,11 @@ import (
 	"weather-app/internal/weather"
 )
 
+// Use for cases like "/api/confirm" instead "/api/confirm/"
+func wrongQueryHandler(w http.ResponseWriter, req *http.Request) {
+	http.Error(w, "404 page not found", http.StatusNotFound)
+}
+
 func main() {
 	log.Println("Starting Weather Server...")
 
@@ -20,8 +25,13 @@ func main() {
 	subService := subscription.NewSubscriptionService(db)
 	subHandler := subscription.NewHandler(subService)
 
+	// Weather service
 	http.HandleFunc("/api/weather", weather.WeatherHandler)
-	http.HandleFunc("/api/subscribe", subHandler.Handler)
+
+	// Subscription service
+	http.HandleFunc("/api/subscribe", subHandler.SubscribeHandler)
+	http.HandleFunc("/api/confirm/", subHandler.ConfirmHandler)
+	http.HandleFunc("/api/confirm", wrongQueryHandler)
 
 	addr := ":8080"
 	log.Printf("Server running at %s", addr)

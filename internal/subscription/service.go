@@ -12,6 +12,13 @@ import (
 	"gorm.io/gorm"
 )
 
+var (
+	ErrTokenNotFound  = errors.New("token not found")
+	ErrTokenWrongType = errors.New("invalid token type")
+	ErrTokenEmpty     = errors.New("token is empty")
+	ErrTokenUsed      = errors.New("token already used")
+)
+
 type SubscriptionService struct {
 	DB *gorm.DB
 }
@@ -56,25 +63,76 @@ func (srv *SubscriptionService) Subscribe(email, city, frequency string) error {
 		return fmt.Errorf("error getting user: %w", err)
 	}
 
-	sub, err := database.CreateSubscription(user, city, frequency, srv.DB)
+	_, err = database.CreateSubscription(user, city, frequency, srv.DB)
 
 	if err != nil {
 		return fmt.Errorf("error creating subscription: %w", err)
 	}
 
-	tokenValue, err := generateToken(32)
+	confirmTokenValue, err := generateToken(32)
 
 	if err != nil {
-		return fmt.Errorf("error genertating token: %w", err)
+		return fmt.Errorf("error generating confirm token: %w", err)
 	}
 
-	token, err := database.CreateToken(sub, tokenValue, "confirm", srv.DB)
+	confirmToken, err := database.CreateToken(user, confirmTokenValue, models.TokenTypeConfirm, srv.DB)
 
 	if err != nil {
-		return fmt.Errorf("error creating token: %w", err)
+		return fmt.Errorf("error creating confirm token: %w", err)
 	}
 
-	log.Printf("Created token: %s\n", token.Value)
+	log.Printf("Created confirm token %s \n", confirmToken.Value)
+
+	return nil
+}
+
+func (srv *SubscriptionService) Confirm(tokenValue string) error {
+	if tokenValue == "" {
+		return ErrTokenEmpty
+	}
+
+	token, err := database.GetToken(tokenValue, srv.DB)
+
+	if err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return ErrTokenNotFound
+		} else {
+			// database error
+
+			return fmt.Errorf("error getting token: %w", err)
+		}
+	}
+
+	if token.Type != models.TokenTypeConfirm {
+		return ErrTokenWrongType
+	}
+
+	user, err := database.GetUserByID(token.UserID, srv.DB)
+	if err != nil {
+		// database error
+
+		return fmt.Errorf("error getting user: %w", err)
+	}
+
+	if user.IsConfirmed {
+		return ErrTokenUsed
+	}
+
+	err = database.UpdateUserConfirmed(user, true, srv.DB)
+
+	if err != nil {
+		// database error
+
+		return fmt.Errorf("error updating user confirm: %w", err)
+	}
+
+	err = database.DeleteToken(token, srv.DB)
+
+	if err != nil {
+		// database error
+
+		return fmt.Errorf("error deleting token: %w", err)
+	}
 
 	return nil
 }
