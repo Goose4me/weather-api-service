@@ -2,6 +2,7 @@ package database
 
 import (
 	"fmt"
+	"log"
 	"os"
 	"time"
 
@@ -86,6 +87,27 @@ func DeleteUser(user *models.User, db *gorm.DB) error {
 	return db.Delete(user).Error
 }
 
+func DeleteUserWithTokensAndSubscription(userID uuid.UUID, db *gorm.DB) error {
+	return db.Transaction(func(tx *gorm.DB) error {
+		// Delete all tokens for the user
+		if err := tx.Where("user_id = ?", userID).Delete(&models.Token{}).Error; err != nil {
+			return fmt.Errorf("failed to delete tokens: %w", err)
+		}
+
+		// Delete subscription for the user
+		if err := tx.Where("user_id = ?", userID).Delete(&models.Subscription{}).Error; err != nil {
+			return fmt.Errorf("failed to delete subscription: %w", err)
+		}
+
+		// Delete the user
+		if err := tx.Delete(&models.User{}, "id = ?", userID).Error; err != nil {
+			return fmt.Errorf("failed to delete user: %w", err)
+		}
+
+		return nil
+	})
+}
+
 func CreateNewUser(email string, db *gorm.DB) (*models.User, error) {
 	user := models.User{
 		Email:       email,
@@ -94,6 +116,69 @@ func CreateNewUser(email string, db *gorm.DB) (*models.User, error) {
 	}
 
 	if err := db.Create(&user).Error; err != nil {
+		return nil, err
+	}
+
+	return &user, nil
+}
+
+func CreateUserWithSubscriptionAndTokens(
+	email, city, frequency string,
+	tokenTypes []string,
+	generateToken func() (string, error),
+	db *gorm.DB,
+) (*models.User, error) {
+
+	var user models.User
+
+	err := db.Transaction(func(tx *gorm.DB) error {
+		createdTime := time.Now()
+
+		// Create User
+		user = models.User{
+			Email:       email,
+			IsConfirmed: false,
+			CreatedAt:   createdTime,
+		}
+		if err := tx.Create(&user).Error; err != nil {
+			return fmt.Errorf("failed to create user: %w", err)
+		}
+
+		// Create Subscription
+		sub := models.Subscription{
+			UserID:    user.ID,
+			City:      city,
+			Frequency: frequency,
+			CreatedAt: createdTime,
+		}
+		if err := tx.Create(&sub).Error; err != nil {
+			return fmt.Errorf("failed to create subscription: %w", err)
+		}
+
+		// Create Tokens
+		for _, tokenType := range tokenTypes {
+			value, err := generateToken()
+			if err != nil {
+				return fmt.Errorf("failed to generate token: %w", err)
+			}
+
+			token := models.Token{
+				Value:     value,
+				Type:      tokenType,
+				UserID:    user.ID,
+				CreatedAt: createdTime,
+			}
+			if err := tx.Create(&token).Error; err != nil {
+				return fmt.Errorf("failed to create %s token: %w", tokenType, err)
+			}
+
+			log.Printf("Created %s token: %s", tokenType, value)
+		}
+
+		return nil
+	})
+
+	if err != nil {
 		return nil, err
 	}
 
@@ -115,6 +200,17 @@ func UpdateUserConfirmed(user *models.User, isConfirmed bool, db *gorm.DB) error
 	}
 
 	return nil
+}
+
+func GetSubscription(user *models.User, db *gorm.DB) (*models.Subscription, error) {
+	var subscription models.Subscription
+
+	err := db.Where("user_id = ?", user.ID).First(&subscription).Error
+	if err != nil {
+		return nil, err
+	}
+
+	return &subscription, nil
 }
 
 func DeleteSubscription(sub *models.Subscription, db *gorm.DB) error {
@@ -162,6 +258,10 @@ func GetToken(value string, db *gorm.DB) (*models.Token, error) {
 
 func DeleteToken(token *models.Token, db *gorm.DB) error {
 	return db.Delete(token).Error
+}
+
+func DeleteTokensByUserID(db *gorm.DB, userID uuid.UUID) error {
+	return db.Where("user_id = ?", userID).Delete(&models.Token{}).Error
 }
 
 func CreateToken(user *models.User, value, token_type string, db *gorm.DB) (*models.Token, error) {

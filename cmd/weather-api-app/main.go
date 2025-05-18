@@ -32,6 +32,8 @@ func main() {
 	http.HandleFunc("/api/subscribe", subHandler.SubscribeHandler)
 	http.HandleFunc("/api/confirm/", subHandler.ConfirmHandler)
 	http.HandleFunc("/api/confirm", wrongQueryHandler)
+	http.HandleFunc("/api/unsubscribe/", subHandler.UnsubscribeHandler)
+	http.HandleFunc("/api/unsubscribe", wrongQueryHandler)
 
 	addr := ":8080"
 	log.Printf("Server running at %s", addr)

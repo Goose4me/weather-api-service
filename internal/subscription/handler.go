@@ -134,3 +134,37 @@ func (h *SubscriptionHandler) ConfirmHandler(w http.ResponseWriter, req *http.Re
 
 	w.WriteHeader(http.StatusOK)
 }
+
+func (h *SubscriptionHandler) UnsubscribeHandler(w http.ResponseWriter, req *http.Request) {
+	if req.Method != "GET" {
+		errorMessage := fmt.Sprintf("Unsupported method %s", req.Method)
+		http.Error(w, errorMessage, http.StatusBadRequest)
+		return
+	}
+
+	tokenValue := strings.TrimPrefix(req.URL.Path, "/api/unsubscribe/")
+
+	log.Printf("Token is: %s\n", tokenValue)
+
+	err := h.service.Unsubscribe(tokenValue)
+	if err != nil {
+		switch {
+		case errors.Is(err, ErrTokenNotFound):
+			http.Error(w, ErrTokenNotFound.Error(), http.StatusNotFound)
+
+		case errors.Is(err, ErrTokenEmpty):
+			http.Error(w, ErrTokenEmpty.Error(), http.StatusBadRequest)
+
+		case errors.Is(err, ErrTokenWrongType):
+			http.Error(w, ErrTokenWrongType.Error(), http.StatusBadRequest)
+
+		default:
+			http.Error(w, genericErrorMsg, http.StatusInternalServerError)
+		}
+
+		log.Println(err.Error())
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+}

@@ -28,6 +28,10 @@ func NewSubscriptionService(db *gorm.DB) *SubscriptionService {
 
 var ErrUserAlreadyExists = errors.New("user already exists")
 
+func generateTokenDefault() (string, error) {
+	return generateToken(32)
+}
+
 func generateToken(n int) (string, error) {
 	b := make([]byte, n)
 	if _, err := rand.Read(b); err != nil {
@@ -38,7 +42,6 @@ func generateToken(n int) (string, error) {
 }
 
 func (srv *SubscriptionService) Subscribe(email, city, frequency string) error {
-	var user *models.User
 	_, err := database.GetUser(email, srv.DB)
 
 	if err == nil {
@@ -47,40 +50,22 @@ func (srv *SubscriptionService) Subscribe(email, city, frequency string) error {
 
 		return ErrUserAlreadyExists
 
-	} else if err == gorm.ErrRecordNotFound {
-		// user doesn't exists. Crearte one
-		user, err = database.CreateNewUser(email, srv.DB)
-
-		if err != nil {
-			return fmt.Errorf("error creating user: %w", err)
-		}
-
-	} else {
+	} else if err != gorm.ErrRecordNotFound {
 		// database error
 		log.Printf("Database error: %s\n", err.Error())
 
 		return fmt.Errorf("error getting user: %w", err)
 	}
 
-	_, err = database.CreateSubscription(user, city, frequency, srv.DB)
+	tokenTypes := []string{models.TokenTypeConfirm, models.TokenTypeUnsubscribe}
+
+	_, err = database.CreateUserWithSubscriptionAndTokens(email, city, frequency, tokenTypes, generateTokenDefault, srv.DB)
 
 	if err != nil {
-		return fmt.Errorf("error creating subscription: %w", err)
+		// database error
+
+		return fmt.Errorf("error creating user: %w", err)
 	}
-
-	confirmTokenValue, err := generateToken(32)
-
-	if err != nil {
-		return fmt.Errorf("error generating confirm token: %w", err)
-	}
-
-	confirmToken, err := database.CreateToken(user, confirmTokenValue, models.TokenTypeConfirm, srv.DB)
-
-	if err != nil {
-		return fmt.Errorf("error creating confirm token: %w", err)
-	}
-
-	log.Printf("Created confirm token %s \n", confirmToken.Value)
 
 	return nil
 }
@@ -127,6 +112,45 @@ func (srv *SubscriptionService) Confirm(tokenValue string) error {
 		// database error
 
 		return fmt.Errorf("error deleting token: %w", err)
+	}
+
+	return nil
+}
+
+func (srv *SubscriptionService) Unsubscribe(tokenValue string) error {
+	if tokenValue == "" {
+		return ErrTokenEmpty
+	}
+
+	token, err := database.GetToken(tokenValue, srv.DB)
+
+	if err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return ErrTokenNotFound
+		} else {
+			// database error
+
+			return fmt.Errorf("error getting token: %w", err)
+		}
+	}
+
+	if token.Type != models.TokenTypeUnsubscribe {
+		return ErrTokenWrongType
+	}
+
+	user, err := database.GetUserByID(token.UserID, srv.DB)
+	if err != nil {
+		// database error
+
+		return fmt.Errorf("error getting user: %w", err)
+	}
+
+	err = database.DeleteUserWithTokensAndSubscription(user.ID, srv.DB)
+
+	if err != nil {
+		// database error
+
+		return fmt.Errorf("error deleting user: %w", err)
 	}
 
 	return nil
