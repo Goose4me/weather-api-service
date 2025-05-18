@@ -1,6 +1,7 @@
 package subscription
 
 import (
+	"errors"
 	"fmt"
 	"net/http"
 )
@@ -82,7 +83,11 @@ func (h *SubscriptionHandler) Handler(w http.ResponseWriter, req *http.Request) 
 	err := h.service.Subscribe(email, city, frequency)
 
 	if err != nil {
-		http.Error(w, genericErrorMsg, http.StatusInternalServerError)
+		if errors.Is(err, ErrUserAlreadyExists) {
+			http.Error(w, ErrUserAlreadyExists.Error(), http.StatusConflict)
+		} else {
+			http.Error(w, genericErrorMsg, http.StatusInternalServerError)
+		}
 
 		return
 	}

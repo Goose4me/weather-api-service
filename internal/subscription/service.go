@@ -3,9 +3,11 @@ package subscription
 import (
 	"crypto/rand"
 	"encoding/base64"
+	"errors"
 	"fmt"
 	"log"
 	"weather-app/internal/database"
+	"weather-app/internal/database/models"
 
 	"gorm.io/gorm"
 )
@@ -18,6 +20,8 @@ func NewSubscriptionService(db *gorm.DB) *SubscriptionService {
 	return &SubscriptionService{DB: db}
 }
 
+var ErrUserAlreadyExists = errors.New("user already exists")
+
 func generateToken(n int) (string, error) {
 	b := make([]byte, n)
 	if _, err := rand.Read(b); err != nil {
@@ -28,19 +32,28 @@ func generateToken(n int) (string, error) {
 }
 
 func (srv *SubscriptionService) Subscribe(email, city, frequency string) error {
-	user, err := database.GetUser(email, srv.DB)
+	var user *models.User
+	_, err := database.GetUser(email, srv.DB)
 
-	if err != nil {
-		if err == gorm.ErrRecordNotFound {
-			user, err = database.CreateNewUser(email, srv.DB)
+	if err == nil {
+		// user already exists
+		log.Printf("User %s already exists\n", email)
 
-			if err != nil {
-				return fmt.Errorf("error creating user: %w", err)
-			}
+		return ErrUserAlreadyExists
 
-		} else {
-			return fmt.Errorf("error getting user: %w", err)
+	} else if err == gorm.ErrRecordNotFound {
+		// user doesn't exists. Crearte one
+		user, err = database.CreateNewUser(email, srv.DB)
+
+		if err != nil {
+			return fmt.Errorf("error creating user: %w", err)
 		}
+
+	} else {
+		// database error
+		log.Printf("Database error: %s\n", err.Error())
+
+		return fmt.Errorf("error getting user: %w", err)
 	}
 
 	sub, err := database.CreateSubscription(user, city, frequency, srv.DB)
