@@ -124,9 +124,6 @@ func (h *SubscriptionHandler) ConfirmHandler(w http.ResponseWriter, req *http.Re
 		case errors.Is(err, ErrTokenWrongType):
 			http.Error(w, ErrTokenWrongType.Error(), http.StatusBadRequest)
 
-		case errors.Is(err, ErrTokenUsed):
-			http.Error(w, ErrTokenUsed.Error(), http.StatusBadRequest)
-
 		default:
 			http.Error(w, genericErrorMsg, http.StatusInternalServerError)
 		}

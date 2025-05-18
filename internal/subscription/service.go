@@ -16,7 +16,6 @@ var (
 	ErrTokenNotFound  = errors.New("token not found")
 	ErrTokenWrongType = errors.New("invalid token type")
 	ErrTokenEmpty     = errors.New("token is empty")
-	ErrTokenUsed      = errors.New("token already used")
 )
 
 type SubscriptionService struct {
@@ -112,10 +111,6 @@ func (srv *SubscriptionService) Confirm(tokenValue string) error {
 		// database error
 
 		return fmt.Errorf("error getting user: %w", err)
-	}
-
-	if user.IsConfirmed {
-		return ErrTokenUsed
 	}
 
 	err = database.UpdateUserConfirmed(user, true, srv.DB)
