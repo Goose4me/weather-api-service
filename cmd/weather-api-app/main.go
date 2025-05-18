@@ -25,8 +25,11 @@ func main() {
 	subService := subscription.NewSubscriptionService(db)
 	subHandler := subscription.NewHandler(subService)
 
+	weatherService := weather.NewWeatherService()
+	weatherHandler := weather.NewHandler(weatherService)
+
 	// Weather service
-	http.HandleFunc("/api/weather", weather.WeatherHandler)
+	http.HandleFunc("/api/weather", weatherHandler.Handler)
 
 	// Subscription service
 	http.HandleFunc("/api/subscribe", subHandler.SubscribeHandler)
