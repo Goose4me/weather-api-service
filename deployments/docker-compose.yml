@@ -18,11 +18,21 @@ services:
   weather-app:
     build:
       context: ../
-      dockerfile: build/docker/Dockerfile
+      dockerfile: build/weather-api-app/docker/Dockerfile
     depends_on:
       - db
     ports:
       - "8081:8080"
+    restart: unless-stopped
+    env_file:
+      - ../.env
+    
+  mail-sender:
+    build:
+      context: ../
+      dockerfile: build/mail-sender/docker/Dockerfile
+    depends_on:
+      - db
     restart: unless-stopped
     env_file:
       - ../.env
