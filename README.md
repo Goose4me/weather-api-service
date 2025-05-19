@@ -3,10 +3,15 @@
 A Go-based weather subscription platform that allows users to subscribe to weather updates for their city and receive periodic email notifications. The service integrates with external weather APIs and supports email confirmations and unsubscriptions.
 
 ---
+## Service deployed
 
+You can find simple static html to interact with service by [url](https://weather-api-front.onrender.com/main.html):
+
+https://weather-api-front.onrender.com/main.html
+
+---
 ## Features
 
-### Present
 - **User Subscription**: Users can subscribe to receive weather updates by providing their email, city, and preferred update frequency (hourly or daily).
 - **Email Notifications**: Sends confirmation emails upon subscription and periodic weather updates.
 - **Weather Data Integration**: Fetches current weather data from external APIs.
