@@ -46,13 +46,20 @@
       const city = prompt('Enter city name:');
       const frequency = prompt('Enter frequency (hourly or daily):');
       if (!email || !city || !frequency) return;
+
+      // Build URL-encoded form data
+      const form = new URLSearchParams();
+      form.append('email', email);
+      form.append('city', city);
+      form.append('frequency', frequency);
+
       try {
         const res = await fetch(`${baseApi}/subscribe`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email, city, frequency })
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          body: form.toString()
         });
-        const data = await res.json();
+        const data = {"status": res.status};
         showOutput(JSON.stringify(data, null, 2));
       } catch (err) {
         showOutput('Error: ' + err);
@@ -64,7 +71,7 @@
       if (!token) return;
       try {
         const res = await fetch(`${baseApi}/unsubscribe/${encodeURIComponent(token)}`);
-        const data = await res.json();
+        const data = {"status": res.status};
         showOutput(JSON.stringify(data, null, 2));
       } catch (err) {
         showOutput('Error: ' + err);
@@ -76,7 +83,7 @@
       if (!token) return;
       try {
         const res = await fetch(`${baseApi}/confirm/${encodeURIComponent(token)}`);
-        const data = await res.json();
+        const data = {"status": res.status};
         showOutput(JSON.stringify(data, null, 2));
       } catch (err) {
         showOutput('Error: ' + err);
