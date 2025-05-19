@@ -9,10 +9,10 @@ import (
 	"net/url"
 	"os"
 	"path"
-	"weather-app/internal/database"
 	"weather-app/internal/database/models"
-	"weather-app/internal/mail"
+	"weather-app/internal/database/repository"
 
+	"github.com/google/uuid"
 	"gorm.io/gorm"
 )
 
@@ -22,22 +22,45 @@ var (
 	ErrTokenEmpty     = errors.New("token is empty")
 )
 
+type ConfirmationMailServiceInterface interface {
+	SendConfirmationMail(email, confirmationUrl, unsubscribeUrl string) error
+}
+
+type UserRepositoryInterface interface {
+	CreateUserWithSubscriptionAndTokens(
+		email, city, frequency string,
+		tokenTypes []string,
+		generateToken func() (string, error),
+	) (*repository.CreateUserWithSubscriptionAndTokensResult, error)
+
+	GetByEmail(email string) (*models.User, error)
+	UpdateUserConfirmationAndDeleteToken(userID uuid.UUID, tokenID uuid.UUID) error
+	DeleteUserWithTokensAndSubscription(userID uuid.UUID) error
+}
+
+type TokenRepositoryInterface interface {
+	GetToken(value string) (*models.Token, error)
+}
+
 type SubscriptionService struct {
-	DB *gorm.DB
-	ms *mail.MailService
+	userRepo  UserRepositoryInterface
+	tokenRepo TokenRepositoryInterface
+
+	ms ConfirmationMailServiceInterface
 }
 
-type SubscriptionServiceInterface interface {
-	Subscribe(email, city, frequency string) error
-	Confirm(tokenValue string) error
-	Unsubscribe(tokenValue string) error
+func NewSubscriptionService(
+	userRepo UserRepositoryInterface,
+	tokenRepo TokenRepositoryInterface,
+	mailService ConfirmationMailServiceInterface,
+) *SubscriptionService {
+	return &SubscriptionService{userRepo: userRepo, tokenRepo: tokenRepo, ms: mailService}
 }
 
-func NewSubscriptionService(db *gorm.DB, mailService *mail.MailService) *SubscriptionService {
-	return &SubscriptionService{DB: db, ms: mailService}
-}
-
-var ErrUserAlreadyExists = errors.New("user already exists")
+var (
+	ErrUserAlreadyExists     = errors.New("user already exists")
+	ErrConfirmationMailError = errors.New("something went wrong with confirmation email")
+)
 
 func generateTokenDefault() (string, error) {
 	return generateToken(32)
@@ -67,7 +90,7 @@ func BuildTokenURL(base, apiPath, token string) (string, error) {
 
 // TODO: Validate city
 func (srv *SubscriptionService) Subscribe(email, city, frequency string) error {
-	_, err := database.GetUser(email, srv.DB)
+	_, err := srv.userRepo.GetByEmail(email)
 
 	if err == nil {
 		// user already exists
@@ -84,7 +107,7 @@ func (srv *SubscriptionService) Subscribe(email, city, frequency string) error {
 
 	tokenTypes := []string{models.TokenTypeConfirm, models.TokenTypeUnsubscribe}
 
-	result, err := database.CreateUserWithSubscriptionAndTokens(email, city, frequency, tokenTypes, generateTokenDefault, srv.DB)
+	result, err := srv.userRepo.CreateUserWithSubscriptionAndTokens(email, city, frequency, tokenTypes, generateTokenDefault)
 
 	if err != nil {
 		// database error
@@ -116,18 +139,21 @@ func (srv *SubscriptionService) Subscribe(email, city, frequency string) error {
 	}
 
 	// TODO: Move to mail-sender container and send in chunks. Not one by one
-	srv.ms.SendConfirmationMail(email, confirmUrl, unsubscribeUrl)
+	err = srv.ms.SendConfirmationMail(email, confirmUrl, unsubscribeUrl)
+
+	if err != nil {
+		return fmt.Errorf("%w: %w", ErrConfirmationMailError, err)
+	}
 
 	return nil
 }
 
-// TODO: Make transactional
 func (srv *SubscriptionService) Confirm(tokenValue string) error {
 	if tokenValue == "" {
 		return ErrTokenEmpty
 	}
 
-	token, err := database.GetToken(tokenValue, srv.DB)
+	token, err := srv.tokenRepo.GetToken(tokenValue)
 
 	if err != nil {
 		if err == gorm.ErrRecordNotFound {
@@ -143,22 +169,7 @@ func (srv *SubscriptionService) Confirm(tokenValue string) error {
 		return ErrTokenWrongType
 	}
 
-	user, err := database.GetUserByID(token.UserID, srv.DB)
-	if err != nil {
-		// database error
-
-		return fmt.Errorf("error getting user: %w", err)
-	}
-
-	err = database.UpdateUserConfirmed(user, true, srv.DB)
-
-	if err != nil {
-		// database error
-
-		return fmt.Errorf("error updating user confirm: %w", err)
-	}
-
-	err = database.DeleteToken(token, srv.DB)
+	err = srv.userRepo.UpdateUserConfirmationAndDeleteToken(token.UserID, token.ID)
 
 	if err != nil {
 		// database error
@@ -174,7 +185,7 @@ func (srv *SubscriptionService) Unsubscribe(tokenValue string) error {
 		return ErrTokenEmpty
 	}
 
-	token, err := database.GetToken(tokenValue, srv.DB)
+	token, err := srv.tokenRepo.GetToken(tokenValue)
 
 	if err != nil {
 		if err == gorm.ErrRecordNotFound {
@@ -190,14 +201,7 @@ func (srv *SubscriptionService) Unsubscribe(tokenValue string) error {
 		return ErrTokenWrongType
 	}
 
-	user, err := database.GetUserByID(token.UserID, srv.DB)
-	if err != nil {
-		// database error
-
-		return fmt.Errorf("error getting user: %w", err)
-	}
-
-	err = database.DeleteUserWithTokensAndSubscription(user.ID, srv.DB)
+	err = srv.userRepo.DeleteUserWithTokensAndSubscription(token.UserID)
 
 	if err != nil {
 		// database error

@@ -9,6 +9,7 @@ import (
 	"syscall"
 	"time"
 	"weather-app/internal/database"
+	"weather-app/internal/database/repository"
 	"weather-app/internal/mail"
 	"weather-app/internal/subscription"
 	"weather-app/internal/weather"
@@ -28,9 +29,12 @@ func main() {
 		log.Fatalf("database initialization failed: %v", err)
 	}
 
-	mailService := mail.NewMailService(db)
+	userRepo := repository.NewUserRepository(db)
+	tokenRepo := repository.NewTokenRepository(db)
 
-	subService := subscription.NewSubscriptionService(db, mailService)
+	mailService := mail.NewMailService(userRepo)
+
+	subService := subscription.NewSubscriptionService(userRepo, tokenRepo, mailService)
 	subHandler := subscription.NewHandler(subService)
 
 	weatherService := weather.NewWeatherService(nil, os.Getenv("WEATHER_API"))

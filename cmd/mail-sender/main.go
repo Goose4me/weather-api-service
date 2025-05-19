@@ -8,6 +8,7 @@ import (
 	"syscall"
 	"time"
 	"weather-app/internal/database"
+	"weather-app/internal/database/repository"
 	"weather-app/internal/mail"
 	"weather-app/internal/scheduler"
 )
@@ -23,7 +24,9 @@ func main() {
 		log.Fatalf("database initialization failed: %v", err)
 	}
 
-	mailService := mail.NewMailService(db)
+	userRepo := repository.NewUserRepository(db)
+
+	mailService := mail.NewMailService(userRepo)
 
 	ctx, cancel := context.WithCancel(context.Background())
 

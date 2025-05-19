@@ -11,20 +11,23 @@ import (
 	"os"
 	"path"
 	"time"
-	"weather-app/internal/database"
+	"weather-app/internal/database/repository"
 	"weather-app/internal/mail/mail_templates"
 	"weather-app/internal/weather"
 
 	"github.com/mailersend/mailersend-go"
-	"gorm.io/gorm"
 )
 
-type MailService struct {
-	DB *gorm.DB
+type UserRepositoryInterface interface {
+	GetUserEmailInfoBatch(limit, offset int, subscriptionFrequency string) ([]repository.UserEmailInfo, error)
 }
 
-func NewMailService(db *gorm.DB) *MailService {
-	return &MailService{DB: db}
+type MailService struct {
+	userRepo UserRepositoryInterface
+}
+
+func NewMailService(userRepo UserRepositoryInterface) *MailService {
+	return &MailService{userRepo: userRepo}
 }
 
 type UpdateType int
@@ -166,7 +169,7 @@ func (srv *MailService) SendWeatherUpdate(updateType UpdateType) error {
 	globalError = nil
 
 	for {
-		batch, err := database.GetNextUserEmailInfoBatch(limit, offset, updateTypeName[updateType], srv.DB)
+		batch, err := srv.userRepo.GetUserEmailInfoBatch(limit, offset, updateTypeName[updateType])
 
 		if err != nil {
 			return fmt.Errorf("failed to load batch: %v", err)

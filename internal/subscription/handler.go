@@ -26,6 +26,12 @@ var validFrequencies = map[string]struct{}{
 	"daily":  {},
 }
 
+type SubscriptionServiceInterface interface {
+	Subscribe(email, city, frequency string) error
+	Confirm(tokenValue string) error
+	Unsubscribe(tokenValue string) error
+}
+
 type SubscriptionHandler struct {
 	service SubscriptionServiceInterface
 }
@@ -100,10 +106,16 @@ func (h *SubscriptionHandler) SubscribeHandler(w http.ResponseWriter, req *http.
 	err = h.service.Subscribe(data.Email, data.City, data.Frequency)
 
 	if err != nil {
-		if errors.Is(err, ErrUserAlreadyExists) {
+		switch {
+		case errors.Is(err, ErrUserAlreadyExists):
 			http.Error(w, ErrUserAlreadyExists.Error(), http.StatusConflict)
-		} else {
+
+		case errors.Is(err, ErrConfirmationMailError):
+			log.Println(err.Error()) // We don't want to fail on confirmation mail error
+
+		default:
 			http.Error(w, genericErrorMsg, http.StatusInternalServerError)
+
 		}
 
 		log.Println(err.Error())
