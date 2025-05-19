@@ -27,10 +27,10 @@ var validFrequencies = map[string]struct{}{
 }
 
 type SubscriptionHandler struct {
-	service *SubscriptionService
+	service SubscriptionServiceInterface
 }
 
-func NewHandler(svc *SubscriptionService) *SubscriptionHandler {
+func NewHandler(svc SubscriptionServiceInterface) *SubscriptionHandler {
 	return &SubscriptionHandler{service: svc}
 }
 

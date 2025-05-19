@@ -7,14 +7,29 @@ import (
 	"io"
 	"log"
 	"net/http"
-	"os"
 )
 
-type WeatherService struct {
+type HTTPClient interface {
+	Do(req *http.Request) (*http.Response, error)
 }
 
-func NewWeatherService() *WeatherService {
-	return &WeatherService{}
+type WeatherService struct {
+	client HTTPClient
+	apiKey string
+}
+
+type WeatherServiceInterface interface {
+	GetWeather(city string) (*WeatherData, error)
+}
+
+func NewWeatherService(client HTTPClient, apiKey string) *WeatherService {
+	if client == nil {
+		client = &http.Client{}
+	}
+	return &WeatherService{
+		client: client,
+		apiKey: apiKey,
+	}
 }
 
 type WeatherResponse struct {
@@ -33,16 +48,21 @@ type WeatherData struct {
 	Description string  `json:"description"`
 }
 
-const api_addres = "https://api.openweathermap.org/data/2.5/weather?q=%s&appid=%s&units=metric"
+var api_addres = "https://api.openweathermap.org/data/2.5/weather?q=%s&appid=%s&units=metric"
 
 var ErrCityNotFound = errors.New("city not found")
 
-func (ws *WeatherService) callWeatherAPI(city, apiKey string) (*WeatherResponse, error) {
+func (ws *WeatherService) callWeatherAPI(city string) (*WeatherResponse, error) {
 	var result WeatherResponse
 
-	url := fmt.Sprintf(api_addres, city, apiKey)
+	url := fmt.Sprintf(api_addres, city, ws.apiKey)
 
-	resp, err := http.Get(url)
+	req, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	resp, err := ws.client.Do(req)
 	if err != nil {
 		log.Printf("failed to fetch weather: %s\n", err.Error())
 
@@ -74,7 +94,7 @@ func (ws *WeatherService) callWeatherAPI(city, apiKey string) (*WeatherResponse,
 // TODO: add something like redis or just store success weather in map and update every hour for API call optimization
 func (ws *WeatherService) GetWeather(city string) (*WeatherData, error) {
 
-	weatherResponse, err := ws.callWeatherAPI(city, os.Getenv("WEATHER_API"))
+	weatherResponse, err := ws.callWeatherAPI(city)
 	if err != nil {
 		return nil, err
 	}

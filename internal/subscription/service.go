@@ -27,6 +27,12 @@ type SubscriptionService struct {
 	ms *mail.MailService
 }
 
+type SubscriptionServiceInterface interface {
+	Subscribe(email, city, frequency string) error
+	Confirm(tokenValue string) error
+	Unsubscribe(tokenValue string) error
+}
+
 func NewSubscriptionService(db *gorm.DB, mailService *mail.MailService) *SubscriptionService {
 	return &SubscriptionService{DB: db, ms: mailService}
 }

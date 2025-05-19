@@ -12,10 +12,10 @@ const (
 )
 
 type WeatherHandler struct {
-	service *WeatherService
+	service WeatherServiceInterface
 }
 
-func NewHandler(svc *WeatherService) *WeatherHandler {
+func NewHandler(svc WeatherServiceInterface) *WeatherHandler {
 	return &WeatherHandler{service: svc}
 }
 

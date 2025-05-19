@@ -33,7 +33,7 @@ func main() {
 	subService := subscription.NewSubscriptionService(db, mailService)
 	subHandler := subscription.NewHandler(subService)
 
-	weatherService := weather.NewWeatherService()
+	weatherService := weather.NewWeatherService(nil, os.Getenv("WEATHER_API"))
 	weatherHandler := weather.NewHandler(weatherService)
 
 	// Weather service
