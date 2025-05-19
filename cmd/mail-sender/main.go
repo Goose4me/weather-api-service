@@ -12,10 +12,10 @@ import (
 	"weather-app/internal/scheduler"
 )
 
+const dailyUpdateHour = 12
+
 func main() {
 	log.Println("Starting Mail Sending Service...")
-
-	ctx, cancel := context.WithCancel(context.Background())
 
 	db, err := database.InitDB()
 
@@ -25,13 +25,34 @@ func main() {
 
 	mailService := mail.NewMailService(db)
 
-	done := scheduler.Start(ctx, time.Second*30, func() {
-		log.Println("I executed")
-		err := mailService.SendWeatherUpdate(mail.Hourly)
+	ctx, cancel := context.WithCancel(context.Background())
 
-		if err != nil {
-			log.Println(err.Error())
+	done := scheduler.Start(ctx, time.Hour, func(currentTime time.Time) {
+		regularUpdate := make(chan struct{})
+
+		go func() {
+			defer close(regularUpdate)
+			log.Println("Regular update started")
+
+			err := mailService.SendWeatherUpdate(mail.Hourly)
+
+			if err != nil {
+				log.Printf("Regular update error: %s\n", err.Error())
+			}
+
+		}()
+
+		if currentTime.Hour() == dailyUpdateHour && currentTime.Minute() == 0 {
+			log.Println("Daily update started")
+
+			err := mailService.SendWeatherUpdate(mail.Daily)
+
+			if err != nil {
+				log.Printf("Daily update error: %s\n", err.Error())
+			}
 		}
+
+		<-regularUpdate
 	})
 
 	// Handle SIGINT/SIGTERM

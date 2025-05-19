@@ -313,12 +313,12 @@ type UserEmailInfo struct {
 	TokenValue string
 }
 
-func GetNextUserEmailInfoBatch(limit, offset int, db *gorm.DB) ([]UserEmailInfo, error) {
+func GetNextUserEmailInfoBatch(limit, offset int, subscriptionFrequency string, db *gorm.DB) ([]UserEmailInfo, error) {
 	var results []UserEmailInfo
 
-	err := db.Table("users").
+	err := db.Debug().Table("users").
 		Select("users.email, subscriptions.city, tokens.value AS token_value").
-		Joins("JOIN subscriptions ON subscriptions.user_id = users.id").
+		Joins("JOIN subscriptions ON subscriptions.user_id = users.id AND subscriptions.frequency = ?", subscriptionFrequency).
 		Joins("JOIN tokens ON tokens.user_id = users.id AND tokens.type = ?", "unsubscribe").
 		Where("users.is_confirmed = true").
 		Order("users.created_at ASC").

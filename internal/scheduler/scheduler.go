@@ -6,7 +6,7 @@ import (
 	"time"
 )
 
-func Start(ctx context.Context, interval time.Duration, task func()) (done chan struct{}) {
+func Start(ctx context.Context, interval time.Duration, task func(currentTime time.Time)) (done chan struct{}) {
 	done = make(chan struct{})
 
 	go func() {
@@ -28,7 +28,7 @@ func Start(ctx context.Context, interval time.Duration, task func()) (done chan 
 
 			case <-timer.C:
 				log.Println("Running scheduled task")
-				task()
+				task(next)
 			}
 		}
 	}()

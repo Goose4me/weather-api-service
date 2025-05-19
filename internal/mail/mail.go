@@ -166,7 +166,7 @@ func (srv *MailService) SendWeatherUpdate(updateType UpdateType) error {
 	globalError = nil
 
 	for {
-		batch, err := database.GetNextUserEmailInfoBatch(limit, offset, srv.DB)
+		batch, err := database.GetNextUserEmailInfoBatch(limit, offset, updateTypeName[updateType], srv.DB)
 
 		if err != nil {
 			return fmt.Errorf("failed to load batch: %v", err)
@@ -176,7 +176,7 @@ func (srv *MailService) SendWeatherUpdate(updateType UpdateType) error {
 		}
 
 		for _, entry := range batch {
-			log.Printf("Send to %s for city %s with token %s\n", entry.Email, entry.City, entry.TokenValue)
+			log.Printf("Send %s to %s for city %s with token %s\n", updateTypeName[updateType], entry.Email, entry.City, entry.TokenValue)
 			data, err := callWeatherAPI(entry.City)
 
 			if err != nil {
