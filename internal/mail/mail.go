@@ -1,7 +1,6 @@
 package mail
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -10,7 +9,6 @@ import (
 	"net/url"
 	"os"
 	"path"
-	"time"
 	"weather-app/internal/database/repository"
 	"weather-app/internal/mail/mail_templates"
 	"weather-app/internal/weather"
@@ -22,12 +20,17 @@ type UserRepositoryInterface interface {
 	GetUserEmailInfoBatch(limit, offset int, subscriptionFrequency string) ([]repository.UserEmailInfo, error)
 }
 
-type MailService struct {
-	userRepo UserRepositoryInterface
+type MailSenderWrapperInterface interface {
+	SendMail(subject, html, text string, recipients []mailersend.Recipient) int
 }
 
-func NewMailService(userRepo UserRepositoryInterface) *MailService {
-	return &MailService{userRepo: userRepo}
+type MailService struct {
+	userRepo UserRepositoryInterface
+	msw      MailSenderWrapperInterface
+}
+
+func NewMailService(userRepo UserRepositoryInterface, msw MailSenderWrapperInterface) *MailService {
+	return &MailService{userRepo: userRepo, msw: msw}
 }
 
 type UpdateType int
@@ -40,32 +43,6 @@ const (
 var updateTypeName = map[UpdateType]string{
 	Hourly: "hourly",
 	Daily:  "daily",
-}
-
-func sendMail(subject, html, text string, recipients []mailersend.Recipient) {
-	APIKey := os.Getenv("MAILSENDER_API_KEY")
-
-	ms := mailersend.NewMailersend(APIKey)
-	ctx := context.Background()
-	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
-	defer cancel()
-
-	from := mailersend.From{
-		Name:  "Weather App",
-		Email: os.Getenv("MAILSENDER_EMAIL"),
-	}
-
-	message := ms.Email.NewMessage()
-
-	message.SetFrom(from)
-	message.SetRecipients(recipients)
-	message.SetSubject(subject)
-	message.SetHTML(html)
-	message.SetText(text)
-
-	res, _ := ms.Email.Send(ctx, message)
-
-	fmt.Println(res.Header.Get("X-Message-Id"))
 }
 
 // TODO: Move to other place. Should be common
@@ -102,7 +79,7 @@ func (srv *MailService) SendConfirmationMail(email, confirmationUrl, unsubscribe
 		},
 	}
 
-	sendMail(subject, html, text, recipients)
+	srv.msw.SendMail(subject, html, text, recipients)
 
 	return nil
 }
@@ -213,7 +190,7 @@ func (srv *MailService) SendWeatherUpdate(updateType UpdateType) error {
 				},
 			}
 
-			sendMail(subject, html, text, recipients)
+			srv.msw.SendMail(subject, html, text, recipients)
 		}
 
 		offset += limit

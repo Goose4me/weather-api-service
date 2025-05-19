@@ -59,16 +59,3 @@ func InitDB() (*gorm.DB, error) {
 
 	return db, nil
 }
-
-// TODO: Refactor controller to be less bulky and separate logic
-
-func GetToken(value string, db *gorm.DB) (*models.Token, error) {
-	var token models.Token
-
-	err := db.Where("value = ?", value).First(&token).Error
-	if err != nil {
-		return nil, err
-	}
-
-	return &token, nil
-}

@@ -26,7 +26,9 @@ func main() {
 
 	userRepo := repository.NewUserRepository(db)
 
-	mailService := mail.NewMailService(userRepo)
+	APIKey := os.Getenv("MAILSENDER_API_KEY")
+	msw := mail.NewMailSenderWrapper(APIKey)
+	mailService := mail.NewMailService(userRepo, msw)
 
 	ctx, cancel := context.WithCancel(context.Background())
 
