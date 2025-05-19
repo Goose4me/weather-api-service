@@ -21,6 +21,7 @@ A Go-based weather subscription platform that allows users to subscribe to weath
 - Group mail sending in chunks by cities
 - Move confirmation mail sending to `mail-sender`
 - Add cache for weather info to reduce API calls. Redis best option, but simple map should work
+- Improve test coverage. Now around `50%`
 ---
 
 ## Getting Started
@@ -54,7 +55,7 @@ BASE_URL=http://localhost:8081
 WEATHER_APP_BASE_URL=http://weather-app:8080/
 ```
 
-3. **Run the application**
+3. **Deploy the application**
 
 ``` bash
 docker compose --env-file .\.env -f .\deployments\docker-compose.yml up -d
@@ -67,7 +68,6 @@ go test -v ./...
 ```
 
 ## API Endpoints
-
 
 - `GET /api/weather?city={city}`: Get current weather in the city.
 
