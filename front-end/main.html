@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Weather API Service Client</title>
+  <style>
+    body { font-family: sans-serif; padding: 2rem; }
+    button { margin: 0.5rem; padding: 0.5rem 1rem; }
+    pre { background: #f4f4f4; padding: 1rem; white-space: pre-wrap; }
+  </style>
+</head>
+<body>
+  <h1>Weather API Service Client</h1>
+
+  <div>
+    <button id="getWeatherBtn">Get Weather</button>
+    <button id="subscribeBtn">Subscribe</button>
+    <button id="unsubscribeBtn">Unsubscribe</button>
+    <button id="confirmBtn">Confirm</button>
+  </div>
+
+  <h2>Response</h2>
+  <pre id="output">Click a button to see results here</pre>
+
+  <script>
+    const baseApi = 'https://weather-api-service-7wu8.onrender.com/api';
+
+    function showOutput(text) {
+      document.getElementById('output').textContent = text;
+    }
+
+    document.getElementById('getWeatherBtn').addEventListener('click', async () => {
+      const city = prompt('Enter city name:');
+      if (!city) return;
+      try {
+        const res = await fetch(`${baseApi}/weather?city=${encodeURIComponent(city)}`);
+        const data = await res.json();
+        showOutput(JSON.stringify(data, null, 2));
+      } catch (err) {
+        showOutput('Error: ' + err);
+      }
+    });
+
+    document.getElementById('subscribeBtn').addEventListener('click', async () => {
+      const email = prompt('Enter your email:');
+      const city = prompt('Enter city name:');
+      const frequency = prompt('Enter frequency (hourly or daily):');
+      if (!email || !city || !frequency) return;
+      try {
+        const res = await fetch(`${baseApi}/subscribe`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email, city, frequency })
+        });
+        const data = await res.json();
+        showOutput(JSON.stringify(data, null, 2));
+      } catch (err) {
+        showOutput('Error: ' + err);
+      }
+    });
+
+    document.getElementById('unsubscribeBtn').addEventListener('click', async () => {
+      const token = prompt('Enter unsubscribe token:');
+      if (!token) return;
+      try {
+        const res = await fetch(`${baseApi}/unsubscribe/${encodeURIComponent(token)}`);
+        const data = await res.json();
+        showOutput(JSON.stringify(data, null, 2));
+      } catch (err) {
+        showOutput('Error: ' + err);
+      }
+    });
+
+    document.getElementById('confirmBtn').addEventListener('click', async () => {
+      const token = prompt('Enter confirmation token:');
+      if (!token) return;
+      try {
+        const res = await fetch(`${baseApi}/confirm/${encodeURIComponent(token)}`);
+        const data = await res.json();
+        showOutput(JSON.stringify(data, null, 2));
+      } catch (err) {
+        showOutput('Error: ' + err);
+      }
+    });
+  </script>
+</body>
+</html>
