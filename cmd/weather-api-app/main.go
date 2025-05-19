@@ -8,6 +8,9 @@ import (
 	"os/signal"
 	"syscall"
 	"time"
+
+	"github.com/rs/cors"
+
 	"weather-app/internal/database"
 	"weather-app/internal/database/repository"
 	"weather-app/internal/mail"
@@ -54,9 +57,18 @@ func main() {
 	http.HandleFunc("/api/unsubscribe/", subHandler.UnsubscribeHandler)
 	http.HandleFunc("/api/unsubscribe", wrongQueryHandler)
 
+	// fix CORS problem
+	c := cors.New(cors.Options{
+		AllowedOrigins:   []string{"*"},
+		AllowedMethods:   []string{"GET", "POST", "OPTIONS"},
+		AllowedHeaders:   []string{"Content-Type"},
+		AllowCredentials: true,
+	})
+	handlerWithCORS := c.Handler(http.DefaultServeMux)
+
 	srv := &http.Server{
 		Addr:    ":8080",
-		Handler: http.DefaultServeMux, // or your custom router
+		Handler: handlerWithCORS, // or your custom router
 	}
 
 	sigChan := make(chan os.Signal, 1)

@@ -5,6 +5,7 @@ go 1.24.3
 require (
 	github.com/google/uuid v1.6.0
 	github.com/mailersend/mailersend-go v1.6.1
+	github.com/rs/cors v1.11.1
 	gorm.io/driver/postgres v1.5.11
 	gorm.io/gorm v1.26.1
 )
