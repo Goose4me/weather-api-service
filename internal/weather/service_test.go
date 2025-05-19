@@ -1,4 +1,4 @@
-package weather
+package weather_test
 
 import (
 	"errors"
@@ -7,6 +7,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"testing"
+	"weather-app/internal/weather"
 )
 
 // helper to temporarily override the environment variable
@@ -27,13 +28,13 @@ func TestGetWeather_Success(t *testing.T) {
 	}))
 	defer server.Close()
 
-	// Override the global api_addres for test
-	oldAPI := api_addres
-	api_addres = server.URL + "?q=%s&appid=%s"
-	defer func() { api_addres = oldAPI }()
+	original := os.Getenv("WEATHER_API_ADDRESS")
+	api_addres := server.URL + "?q=%s&appid=%s"
+	os.Setenv("WEATHER_API_ADDRESS", api_addres)
+	defer os.Setenv("WEATHER_API_ADDRESS", original)
 
 	withEnv("WEATHER_API", "dummy", func() {
-		ws := NewWeatherService(nil, "test_api")
+		ws := weather.NewWeatherService(nil, "test_api")
 
 		data, err := ws.GetWeather("Kyiv")
 		if err != nil {
@@ -52,15 +53,16 @@ func TestGetWeather_NotFound(t *testing.T) {
 	}))
 	defer server.Close()
 
-	oldAPI := api_addres
-	api_addres = server.URL + "?q=%s&appid=%s"
-	defer func() { api_addres = oldAPI }()
+	original := os.Getenv("WEATHER_API_ADDRESS")
+	api_addres := server.URL + "?q=%s&appid=%s"
+	os.Setenv("WEATHER_API_ADDRESS", api_addres)
+	defer os.Setenv("WEATHER_API_ADDRESS", original)
 
 	withEnv("WEATHER_API", "dummy", func() {
-		ws := NewWeatherService(nil, "test_api")
+		ws := weather.NewWeatherService(nil, "test_api")
 
 		_, err := ws.GetWeather("InvalidCity")
-		if !errors.Is(err, ErrCityNotFound) {
+		if !errors.Is(err, weather.ErrCityNotFound) {
 			t.Fatalf("expected ErrCityNotFound, got %v", err)
 		}
 	})
@@ -73,12 +75,13 @@ func TestGetWeather_BadJSON(t *testing.T) {
 	}))
 	defer server.Close()
 
-	oldAPI := api_addres
-	api_addres = server.URL + "?q=%s&appid=%s"
-	defer func() { api_addres = oldAPI }()
+	original := os.Getenv("WEATHER_API_ADDRESS")
+	api_addres := server.URL + "?q=%s&appid=%s"
+	os.Setenv("WEATHER_API_ADDRESS", api_addres)
+	defer os.Setenv("WEATHER_API_ADDRESS", original)
 
 	withEnv("WEATHER_API", "dummy", func() {
-		ws := NewWeatherService(nil, "test_api")
+		ws := weather.NewWeatherService(nil, "test_api")
 		_, err := ws.GetWeather("Kyiv")
 		if err == nil {
 			t.Fatal("expected error due to bad JSON, got nil")
@@ -92,12 +95,13 @@ func TestGetWeather_GenericIssue(t *testing.T) {
 	}))
 	defer server.Close()
 
-	oldAPI := api_addres
-	api_addres = server.URL + "?q=%s&appid=%s"
-	defer func() { api_addres = oldAPI }()
+	original := os.Getenv("WEATHER_API_ADDRESS")
+	api_addres := server.URL + "?q=%s&appid=%s"
+	os.Setenv("WEATHER_API_ADDRESS", api_addres)
+	defer os.Setenv("WEATHER_API_ADDRESS", original)
 
 	withEnv("WEATHER_API", "dummy", func() {
-		ws := NewWeatherService(nil, "test_api")
+		ws := weather.NewWeatherService(nil, "test_api")
 
 		_, err := ws.GetWeather("InvalidCity")
 		if err == nil {
@@ -119,7 +123,7 @@ func TestGetWeather_RequestIssue(t *testing.T) {
 		}),
 	}
 
-	ws := NewWeatherService(fakeClient, "test_api")
+	ws := weather.NewWeatherService(fakeClient, "test_api")
 
 	_, err := ws.GetWeather("Lviv")
 	if err == nil {

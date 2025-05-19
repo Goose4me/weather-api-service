@@ -8,7 +8,7 @@ import (
 )
 
 const (
-	genericErrorMsg = "Something went wrong"
+	GenericErrorMsg = "Something went wrong"
 )
 
 type WeatherHandler struct {
@@ -39,7 +39,7 @@ func (wh *WeatherHandler) Handler(w http.ResponseWriter, req *http.Request) {
 			http.Error(w, ErrCityNotFound.Error(), http.StatusNotFound)
 
 		} else {
-			http.Error(w, genericErrorMsg, http.StatusInternalServerError)
+			http.Error(w, GenericErrorMsg, http.StatusInternalServerError)
 		}
 
 		return

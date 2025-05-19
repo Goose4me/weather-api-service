@@ -7,6 +7,7 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"os"
 )
 
 type HTTPClient interface {
@@ -48,12 +49,12 @@ type WeatherData struct {
 	Description string  `json:"description"`
 }
 
-var api_addres = "https://api.openweathermap.org/data/2.5/weather?q=%s&appid=%s&units=metric"
-
 var ErrCityNotFound = errors.New("city not found")
 
 func (ws *WeatherService) callWeatherAPI(city string) (*WeatherResponse, error) {
 	var result WeatherResponse
+
+	var api_addres = os.Getenv("WEATHER_API_ADDRESS")
 
 	url := fmt.Sprintf(api_addres, city, ws.apiKey)
 
