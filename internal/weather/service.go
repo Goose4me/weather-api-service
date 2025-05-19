@@ -2,6 +2,7 @@ package weather
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"log"
@@ -34,6 +35,8 @@ type WeatherData struct {
 
 const api_addres = "https://api.openweathermap.org/data/2.5/weather?q=%s&appid=%s&units=metric"
 
+var ErrCityNotFound = errors.New("city not found")
+
 func (ws *WeatherService) callWeatherAPI(city, apiKey string) (*WeatherResponse, error) {
 	var result WeatherResponse
 
@@ -52,7 +55,11 @@ func (ws *WeatherService) callWeatherAPI(city, apiKey string) (*WeatherResponse,
 		body, _ := io.ReadAll(resp.Body)
 		log.Printf("API error: %s\n", string(body))
 
-		return nil, fmt.Errorf("API error %s", string(body))
+		if resp.StatusCode == http.StatusNotFound {
+			return nil, ErrCityNotFound
+		} else {
+			return nil, fmt.Errorf("API error %s", string(body))
+		}
 	}
 
 	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {

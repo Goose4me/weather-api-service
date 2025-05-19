@@ -2,6 +2,7 @@ package weather
 
 import (
 	"encoding/json"
+	"errors"
 	"log"
 	"net/http"
 )
@@ -34,11 +35,15 @@ func (wh *WeatherHandler) Handler(w http.ResponseWriter, req *http.Request) {
 
 	weatherData, err := wh.service.GetWeather(city)
 	if err != nil {
-		http.Error(w, genericErrorMsg, http.StatusInternalServerError)
+		if errors.Is(err, ErrCityNotFound) {
+			http.Error(w, ErrCityNotFound.Error(), http.StatusNotFound)
+
+		} else {
+			http.Error(w, genericErrorMsg, http.StatusInternalServerError)
+		}
 
 		return
 	}
-
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 
