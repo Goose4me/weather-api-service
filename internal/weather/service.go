@@ -119,5 +119,7 @@ func (ws *WeatherService) GetWeather(city string) (*WeatherData, error) {
 	weatherData.Humidity = weatherResponse.Main.Humidity
 	weatherData.Description = weatherResponse.Weather[0].Description
 
+	ws.weatherCache.Set(city, &weatherData)
+
 	return &weatherData, err
 }
