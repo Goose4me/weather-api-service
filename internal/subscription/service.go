@@ -6,8 +6,12 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"net/url"
+	"os"
+	"path"
 	"weather-app/internal/database"
 	"weather-app/internal/database/models"
+	"weather-app/internal/mail"
 
 	"gorm.io/gorm"
 )
@@ -20,10 +24,11 @@ var (
 
 type SubscriptionService struct {
 	DB *gorm.DB
+	ms *mail.MailService
 }
 
-func NewSubscriptionService(db *gorm.DB) *SubscriptionService {
-	return &SubscriptionService{DB: db}
+func NewSubscriptionService(db *gorm.DB, mailService *mail.MailService) *SubscriptionService {
+	return &SubscriptionService{DB: db, ms: mailService}
 }
 
 var ErrUserAlreadyExists = errors.New("user already exists")
@@ -41,6 +46,19 @@ func generateToken(n int) (string, error) {
 	return base64.RawURLEncoding.EncodeToString(b), nil
 }
 
+func buildConfirmURL(base, apiPath, token string) (string, error) {
+	u, err := url.Parse(base)
+	if err != nil {
+		return "", fmt.Errorf("invalid base URL: %w", err)
+	}
+
+	// Join the path and token properly
+	u.Path = path.Join(u.Path, apiPath, token)
+
+	return u.String(), nil
+}
+
+// TODO: Validate city
 func (srv *SubscriptionService) Subscribe(email, city, frequency string) error {
 	_, err := database.GetUser(email, srv.DB)
 
@@ -59,13 +77,38 @@ func (srv *SubscriptionService) Subscribe(email, city, frequency string) error {
 
 	tokenTypes := []string{models.TokenTypeConfirm, models.TokenTypeUnsubscribe}
 
-	_, err = database.CreateUserWithSubscriptionAndTokens(email, city, frequency, tokenTypes, generateTokenDefault, srv.DB)
+	result, err := database.CreateUserWithSubscriptionAndTokens(email, city, frequency, tokenTypes, generateTokenDefault, srv.DB)
 
 	if err != nil {
 		// database error
 
 		return fmt.Errorf("error creating user: %w", err)
 	}
+	var confirmationToken, unsubscribeToken *models.Token
+
+	confirmationToken, ok := result.Tokens[models.TokenTypeConfirm]
+
+	if !ok {
+		return fmt.Errorf("error getting confirmation token: %w", err)
+	}
+
+	unsubscribeToken, ok = result.Tokens[models.TokenTypeUnsubscribe]
+
+	if !ok {
+		return fmt.Errorf("error getting unsubscribe token: %w", err)
+	}
+
+	confirmUrl, err := buildConfirmURL(os.Getenv("BASE_URL"), "/api/confirm/", confirmationToken.Value)
+	if err != nil {
+		return fmt.Errorf("error building confirmation url: %w", err)
+	}
+
+	unsubscribeUrl, err := buildConfirmURL(os.Getenv("BASE_URL"), "/api/unsubscribe/", unsubscribeToken.Value)
+	if err != nil {
+		return fmt.Errorf("error building unsubscribe url: %w", err)
+	}
+
+	srv.ms.SendConfirmationMail(email, confirmUrl, unsubscribeUrl)
 
 	return nil
 }

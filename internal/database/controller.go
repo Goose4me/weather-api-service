@@ -122,20 +122,25 @@ func CreateNewUser(email string, db *gorm.DB) (*models.User, error) {
 	return &user, nil
 }
 
+type CreateUserWithSubscriptionAndTokensResult struct {
+	User         *models.User
+	Subscription *models.Subscription
+	Tokens       map[string]*models.Token
+}
+
 func CreateUserWithSubscriptionAndTokens(
 	email, city, frequency string,
 	tokenTypes []string,
 	generateToken func() (string, error),
 	db *gorm.DB,
-) (*models.User, error) {
+) (*CreateUserWithSubscriptionAndTokensResult, error) {
 
-	var user models.User
-
+	result := CreateUserWithSubscriptionAndTokensResult{}
 	err := db.Transaction(func(tx *gorm.DB) error {
 		createdTime := time.Now()
 
 		// Create User
-		user = models.User{
+		user := models.User{
 			Email:       email,
 			IsConfirmed: false,
 			CreatedAt:   createdTime,
@@ -155,6 +160,8 @@ func CreateUserWithSubscriptionAndTokens(
 			return fmt.Errorf("failed to create subscription: %w", err)
 		}
 
+		tokensMap := make(map[string]*models.Token)
+
 		// Create Tokens
 		for _, tokenType := range tokenTypes {
 			value, err := generateToken()
@@ -173,7 +180,13 @@ func CreateUserWithSubscriptionAndTokens(
 			}
 
 			log.Printf("Created %s token: %s", tokenType, value)
+
+			tokensMap[tokenType] = &token
 		}
+
+		result.User = &user
+		result.Subscription = &sub
+		result.Tokens = tokensMap
 
 		return nil
 	})
@@ -182,7 +195,7 @@ func CreateUserWithSubscriptionAndTokens(
 		return nil, err
 	}
 
-	return &user, nil
+	return &result, nil
 }
 
 func UpdateUser(user *models.User, db *gorm.DB) error {

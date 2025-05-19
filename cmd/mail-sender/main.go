@@ -15,6 +15,14 @@ func main() {
 
 	ctx, cancel := context.WithCancel(context.Background())
 
+	// db, err := database.InitDB()
+
+	// if err != nil {
+	// 	log.Fatalf("database initialization failed: %v", err)
+	// }
+
+	// mailService := mail.NewMailService(db)
+
 	done := scheduler.Start(ctx, time.Minute, func() {
 		log.Println("I executed")
 	})
