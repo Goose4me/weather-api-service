@@ -25,7 +25,7 @@ https://weather-api-front.onrender.com/main.html
 - Change architecture to have common errors, functions in one place and reduce dependencies
 - Group mail sending in chunks by cities
 - Move confirmation mail sending to `mail-sender`
-- Add cache for weather info to reduce API calls. Redis best option, but simple map should work
+- ~~Add cache for weather info to reduce API calls. Redis best option, but simple map should work~~
 - Improve test coverage. Now around `50%`
 - Improve logic for daily sending. Probably need other goroutine and ability to set something like start point
 ---
