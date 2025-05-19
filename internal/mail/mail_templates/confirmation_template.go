@@ -1,4 +1,4 @@
-package mail
+package mail_templates
 
 import (
 	"bytes"

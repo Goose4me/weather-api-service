@@ -55,13 +55,15 @@ func InitDB() (*gorm.DB, error) {
 		return nil, fmt.Errorf("failed to connect to DB: %w", err)
 	}
 
-	err = db.AutoMigrate(&models.User{}, &models.Subscription{}, &models.WeatherLog{}, &models.Token{})
+	err = db.AutoMigrate(&models.User{}, &models.Subscription{}, &models.Token{})
 	if err != nil {
 		return nil, fmt.Errorf("failed to migrate DB: %w", err)
 	}
 
 	return db, nil
 }
+
+// TODO: Refactor controller to be less bulky and separate logic
 
 func GetUser(email string, db *gorm.DB) (*models.User, error) {
 	var user models.User
@@ -303,4 +305,30 @@ func CreateToken(user *models.User, value, token_type string, db *gorm.DB) (*mod
 	}
 
 	return &token, nil
+}
+
+type UserEmailInfo struct {
+	Email      string
+	City       string
+	TokenValue string
+}
+
+func GetNextUserEmailInfoBatch(limit, offset int, db *gorm.DB) ([]UserEmailInfo, error) {
+	var results []UserEmailInfo
+
+	err := db.Table("users").
+		Select("users.email, subscriptions.city, tokens.value AS token_value").
+		Joins("JOIN subscriptions ON subscriptions.user_id = users.id").
+		Joins("JOIN tokens ON tokens.user_id = users.id AND tokens.type = ?", "unsubscribe").
+		Where("users.is_confirmed = true").
+		Order("users.created_at ASC").
+		Limit(limit).
+		Offset(offset).
+		Scan(&results).Error
+
+	if err != nil {
+		return nil, fmt.Errorf("query failed: %w", err)
+	}
+
+	return results, nil
 }

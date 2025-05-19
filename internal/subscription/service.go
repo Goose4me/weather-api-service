@@ -46,7 +46,8 @@ func generateToken(n int) (string, error) {
 	return base64.RawURLEncoding.EncodeToString(b), nil
 }
 
-func buildConfirmURL(base, apiPath, token string) (string, error) {
+// TODO: Move to other place. Should be common
+func BuildTokenURL(base, apiPath, token string) (string, error) {
 	u, err := url.Parse(base)
 	if err != nil {
 		return "", fmt.Errorf("invalid base URL: %w", err)
@@ -98,22 +99,23 @@ func (srv *SubscriptionService) Subscribe(email, city, frequency string) error {
 		return fmt.Errorf("error getting unsubscribe token: %w", err)
 	}
 
-	confirmUrl, err := buildConfirmURL(os.Getenv("BASE_URL"), "/api/confirm/", confirmationToken.Value)
+	confirmUrl, err := BuildTokenURL(os.Getenv("BASE_URL"), "/api/confirm/", confirmationToken.Value)
 	if err != nil {
 		return fmt.Errorf("error building confirmation url: %w", err)
 	}
 
-	unsubscribeUrl, err := buildConfirmURL(os.Getenv("BASE_URL"), "/api/unsubscribe/", unsubscribeToken.Value)
+	unsubscribeUrl, err := BuildTokenURL(os.Getenv("BASE_URL"), "/api/unsubscribe/", unsubscribeToken.Value)
 	if err != nil {
 		return fmt.Errorf("error building unsubscribe url: %w", err)
 	}
 
-	// TODO: Move to separate container and send in chunks. Not 1 by 1
+	// TODO: Move to separate container and send in chunks. Not one by one
 	srv.ms.SendConfirmationMail(email, confirmUrl, unsubscribeUrl)
 
 	return nil
 }
 
+// TODO: Make transactional
 func (srv *SubscriptionService) Confirm(tokenValue string) error {
 	if tokenValue == "" {
 		return ErrTokenEmpty

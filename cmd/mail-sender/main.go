@@ -7,6 +7,8 @@ import (
 	"os/signal"
 	"syscall"
 	"time"
+	"weather-app/internal/database"
+	"weather-app/internal/mail"
 	"weather-app/internal/scheduler"
 )
 
@@ -15,16 +17,21 @@ func main() {
 
 	ctx, cancel := context.WithCancel(context.Background())
 
-	// db, err := database.InitDB()
+	db, err := database.InitDB()
 
-	// if err != nil {
-	// 	log.Fatalf("database initialization failed: %v", err)
-	// }
+	if err != nil {
+		log.Fatalf("database initialization failed: %v", err)
+	}
 
-	// mailService := mail.NewMailService(db)
+	mailService := mail.NewMailService(db)
 
-	done := scheduler.Start(ctx, time.Minute, func() {
+	done := scheduler.Start(ctx, time.Second*30, func() {
 		log.Println("I executed")
+		err := mailService.SendWeatherUpdate(mail.Hourly)
+
+		if err != nil {
+			log.Println(err.Error())
+		}
 	})
 
 	// Handle SIGINT/SIGTERM
@@ -38,5 +45,5 @@ func main() {
 	cancel() // Cancel the scheduler
 	<-done   // Wait for the scheduler to be done
 
-	log.Println("💡 Scheduler stopped cleanly.")
+	log.Println("Scheduler stopped cleanly.")
 }
