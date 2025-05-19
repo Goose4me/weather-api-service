@@ -59,7 +59,8 @@ WEATHER_APP_BASE_URL=http://weather-app:8080/
 3. **Deploy the application**
 
 ``` bash
-docker compose --env-file .\.env -f .\deployments\docker-compose.yml up -d
+docker compose --env-file .\.env -f .\deployments\docker-compose.yml up -d --build
+
 ```
 The service will start on http://localhost:8081.
 

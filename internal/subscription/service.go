@@ -98,7 +98,7 @@ func (srv *SubscriptionService) Subscribe(email, city, frequency string) error {
 
 		return ErrUserAlreadyExists
 
-	} else if err != gorm.ErrRecordNotFound {
+	} else if !errors.Is(err, repository.ErrNotFound) {
 		// database error
 		log.Printf("Database error: %s\n", err.Error())
 

@@ -7,7 +7,9 @@ import (
 	"net/http/httptest"
 	"os"
 	"testing"
+	"time"
 	"weather-app/internal/weather"
+	"weather-app/internal/weather/cache"
 )
 
 // helper to temporarily override the environment variable
@@ -34,7 +36,8 @@ func TestGetWeather_Success(t *testing.T) {
 	defer os.Setenv("WEATHER_API_ADDRESS", original)
 
 	withEnv("WEATHER_API", "dummy", func() {
-		ws := weather.NewWeatherService(nil, "test_api")
+		weatherCache := cache.NewWeatherCache(time.Minute * 30)
+		ws := weather.NewWeatherService(nil, "test_api", weatherCache)
 
 		data, err := ws.GetWeather("Kyiv")
 		if err != nil {
@@ -59,7 +62,8 @@ func TestGetWeather_NotFound(t *testing.T) {
 	defer os.Setenv("WEATHER_API_ADDRESS", original)
 
 	withEnv("WEATHER_API", "dummy", func() {
-		ws := weather.NewWeatherService(nil, "test_api")
+		weatherCache := cache.NewWeatherCache(time.Minute * 30)
+		ws := weather.NewWeatherService(nil, "test_api", weatherCache)
 
 		_, err := ws.GetWeather("InvalidCity")
 		if !errors.Is(err, weather.ErrCityNotFound) {
@@ -81,7 +85,8 @@ func TestGetWeather_BadJSON(t *testing.T) {
 	defer os.Setenv("WEATHER_API_ADDRESS", original)
 
 	withEnv("WEATHER_API", "dummy", func() {
-		ws := weather.NewWeatherService(nil, "test_api")
+		weatherCache := cache.NewWeatherCache(time.Minute * 30)
+		ws := weather.NewWeatherService(nil, "test_api", weatherCache)
 		_, err := ws.GetWeather("Kyiv")
 		if err == nil {
 			t.Fatal("expected error due to bad JSON, got nil")
@@ -101,7 +106,8 @@ func TestGetWeather_GenericIssue(t *testing.T) {
 	defer os.Setenv("WEATHER_API_ADDRESS", original)
 
 	withEnv("WEATHER_API", "dummy", func() {
-		ws := weather.NewWeatherService(nil, "test_api")
+		weatherCache := cache.NewWeatherCache(time.Minute * 30)
+		ws := weather.NewWeatherService(nil, "test_api", weatherCache)
 
 		_, err := ws.GetWeather("InvalidCity")
 		if err == nil {
@@ -123,7 +129,8 @@ func TestGetWeather_RequestIssue(t *testing.T) {
 		}),
 	}
 
-	ws := weather.NewWeatherService(fakeClient, "test_api")
+	weatherCache := cache.NewWeatherCache(time.Minute * 30)
+	ws := weather.NewWeatherService(fakeClient, "test_api", weatherCache)
 
 	_, err := ws.GetWeather("Lviv")
 	if err == nil {

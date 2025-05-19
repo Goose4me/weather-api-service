@@ -15,21 +15,29 @@ type HTTPClient interface {
 }
 
 type WeatherService struct {
-	client HTTPClient
-	apiKey string
+	client       HTTPClient
+	apiKey       string
+	weatherCache WeatherCacheInterface
 }
 
 type WeatherServiceInterface interface {
 	GetWeather(city string) (*WeatherData, error)
 }
 
-func NewWeatherService(client HTTPClient, apiKey string) *WeatherService {
+type WeatherCacheInterface interface {
+	Get(city string) (*WeatherData, bool)
+	Set(city string, data *WeatherData)
+}
+
+func NewWeatherService(client HTTPClient, apiKey string, weatherCache WeatherCacheInterface) *WeatherService {
 	if client == nil {
 		client = &http.Client{}
 	}
+
 	return &WeatherService{
-		client: client,
-		apiKey: apiKey,
+		client:       client,
+		apiKey:       apiKey,
+		weatherCache: weatherCache,
 	}
 }
 
@@ -92,9 +100,14 @@ func (ws *WeatherService) callWeatherAPI(city string) (*WeatherResponse, error) 
 	return &result, nil
 }
 
-// TODO: add something like redis or just store success weather in map and update every hour for API call optimization
 func (ws *WeatherService) GetWeather(city string) (*WeatherData, error) {
+	// Check cache first
+	if data, found := ws.weatherCache.Get(city); found {
+		log.Printf("Cache hit for city: %s\n", city)
+		return data, nil
+	}
 
+	// Fallback to external API
 	weatherResponse, err := ws.callWeatherAPI(city)
 	if err != nil {
 		return nil, err

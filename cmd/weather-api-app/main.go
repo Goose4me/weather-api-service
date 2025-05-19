@@ -13,6 +13,7 @@ import (
 	"weather-app/internal/mail"
 	"weather-app/internal/subscription"
 	"weather-app/internal/weather"
+	"weather-app/internal/weather/cache"
 )
 
 // Use for cases like "/api/confirm" instead "/api/confirm/"
@@ -39,7 +40,8 @@ func main() {
 	subService := subscription.NewSubscriptionService(userRepo, tokenRepo, mailService)
 	subHandler := subscription.NewHandler(subService)
 
-	weatherService := weather.NewWeatherService(nil, os.Getenv("WEATHER_API"))
+	weatherCache := cache.NewWeatherCache(time.Minute * 30)
+	weatherService := weather.NewWeatherService(nil, os.Getenv("WEATHER_API"), weatherCache)
 	weatherHandler := weather.NewHandler(weatherService)
 
 	// Weather service
