@@ -71,11 +71,11 @@ func (ws *WeatherService) callWeatherAPI(city, apiKey string) (*WeatherResponse,
 	return &result, nil
 }
 
+// TODO: add something like redis or just store success weather in map and update every hour for API call optimization
 func (ws *WeatherService) GetWeather(city string) (*WeatherData, error) {
 
 	weatherResponse, err := ws.callWeatherAPI(city, os.Getenv("WEATHER_API"))
 	if err != nil {
-
 		return nil, err
 	}
 

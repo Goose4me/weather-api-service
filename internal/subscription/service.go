@@ -108,6 +108,7 @@ func (srv *SubscriptionService) Subscribe(email, city, frequency string) error {
 		return fmt.Errorf("error building unsubscribe url: %w", err)
 	}
 
+	// TODO: Move to separate container and send in chunks. Not 1 by 1
 	srv.ms.SendConfirmationMail(email, confirmUrl, unsubscribeUrl)
 
 	return nil
